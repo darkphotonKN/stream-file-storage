@@ -12,4 +12,7 @@ func TestTCPTransport(t *testing.T) {
 	tr := NewTCPTransport(":4002").(*TCPTransport)
 
 	assert.Equal(t, listenAddr, tr.listenAddress)
+
+	// check that this is returning nil and not an error
+	assert.Nil(t, tr.ListenAndAccept())
 }
