@@ -1,7 +1,7 @@
 package p2p
 
 import (
-	"bytes"
+	// "bytes"
 	"fmt"
 	"net"
 	"sync"
@@ -29,12 +29,17 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	}
 }
 
+// TCP Transport Struct Options
+type TCPTransportOpts struct {
+	ListenAddr string
+	ShakeHands HandshakeFunc
+	Decoder    Decoder
+}
+
 // create a TCP transport container
 type TCPTransport struct {
-	listenAddress string
-	listener      net.Listener
-	shakeHands    HandshakeFunc
-	decoder       Decoder
+	TCPTransportOpts
+	listener net.Listener
 
 	mu sync.RWMutex
 
@@ -47,10 +52,9 @@ type TCPTransport struct {
 }
 
 // conforms to the Transport Interface, using DIP for decoupling
-func NewTCPTransport(listenAddr string) Transport {
+func NewTCPTransport(tcpTransportOpts TCPTransportOpts) Transport {
 	return &TCPTransport{
-		shakeHands:    NOPHandshakeFunc,
-		listenAddress: listenAddr,
+		TCPTransportOpts: tcpTransportOpts,
 	}
 }
 
@@ -58,7 +62,7 @@ func (t *TCPTransport) ListenAndAccept() error {
 
 	var err error
 
-	t.listener, err = net.Listen("tcp", t.listenAddress)
+	t.listener, err = net.Listen("tcp", t.TCPTransportOpts.ListenAddr)
 
 	if err != nil {
 		return err
@@ -96,11 +100,15 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	// create new tcp connection, outbound peer (making a connection with another peer)
 	peer := NewTCPPeer(conn, true)
 
-	fmt.Printf("New incoming connection: %v\n", peer)
+	fmt.Printf("New incoming connection, peer: %+v\n", peer)
 
-	// attempt to shakehands
-	if err := t.shakeHands(conn); err != nil {
+	// attempt to establish handshake
+	if err := t.TCPTransportOpts.ShakeHands(conn); err != nil {
+		// close connection if handeshake failed
 
+		fmt.Printf("TCP handshake error %s\n", err)
+		conn.Close()
+		return
 	}
 
 	// message read loop - reading from connection
@@ -109,7 +117,7 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	tempMsg := TempMsg{}
 
 	for {
-		if err := t.decoder.Decode(conn, &tempMsg); err != nil {
+		if err := t.TCPTransportOpts.Decoder.Decode(conn, &tempMsg); err != nil {
 			fmt.Printf("Error when decoding incoming message to TCP server %s", err)
 			continue
 		}

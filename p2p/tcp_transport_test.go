@@ -9,9 +9,16 @@ import (
 func TestTCPTransport(t *testing.T) {
 	listenAddr := ":4002"
 
-	tr := NewTCPTransport(":4002").(*TCPTransport)
+	tcpOpts := TCPTransportOpts{
+		ListenAddr: ":4002",
+		ShakeHands: NOPHandshakeFunc,
+	}
 
-	assert.Equal(t, listenAddr, tr.listenAddress)
+	tr := NewTCPTransport(
+		tcpOpts,
+	).(*TCPTransport)
+
+	assert.Equal(t, listenAddr, tr.TCPTransportOpts.ListenAddr)
 
 	// check that this is returning nil and not an error
 	assert.Nil(t, tr.ListenAndAccept())
