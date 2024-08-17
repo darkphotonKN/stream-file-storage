@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"sync"
@@ -23,16 +24,17 @@ type TCPPeer struct {
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
-		conn,
-		outbound,
+		conn:     conn,
+		outbound: outbound,
 	}
-
 }
 
 // create a TCP transport container
 type TCPTransport struct {
 	listenAddress string
 	listener      net.Listener
+	shakeHands    HandshakeFunc
+	decoder       Decoder
 
 	mu sync.RWMutex
 
@@ -47,6 +49,7 @@ type TCPTransport struct {
 // conforms to the Transport Interface, using DIP for decoupling
 func NewTCPTransport(listenAddr string) Transport {
 	return &TCPTransport{
+		shakeHands:    NOPHandshakeFunc,
 		listenAddress: listenAddr,
 	}
 }
@@ -67,11 +70,12 @@ func (t *TCPTransport) ListenAndAccept() error {
 	return nil
 }
 
-// listens and serves the tcp connection
+// listens and serves each tcp connection
 func (t *TCPTransport) startAcceptLoop() {
 	for {
 		conn, err := t.listener.Accept()
 
+		// current connection fails, iterate to start listening again
 		if err != nil {
 			fmt.Println("Error while attepting to accept connection.", err)
 
@@ -79,11 +83,37 @@ func (t *TCPTransport) startAcceptLoop() {
 			continue
 		}
 
-		// start another go-routine to handle specific connections
+		// start individual go-routine to handle specific connections
 		go t.handleConn(conn)
 	}
 }
 
+// TODO: update to final message type
+type TempMsg struct{}
+
+// serves message within individual TCP connection
 func (t *TCPTransport) handleConn(conn net.Conn) {
-	fmt.Printf("Connection established %v\n", conn)
+	// create new tcp connection, outbound peer (making a connection with another peer)
+	peer := NewTCPPeer(conn, true)
+
+	fmt.Printf("New incoming connection: %v\n", peer)
+
+	// attempt to shakehands
+	if err := t.shakeHands(conn); err != nil {
+
+	}
+
+	// message read loop - reading from connection
+	// buf := new(bytes.Buffer)
+
+	tempMsg := TempMsg{}
+
+	for {
+		if err := t.decoder.Decode(conn, &tempMsg); err != nil {
+			fmt.Printf("Error when decoding incoming message to TCP server %s", err)
+			continue
+		}
+
+	}
+
 }
