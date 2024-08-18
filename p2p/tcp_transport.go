@@ -92,15 +92,12 @@ func (t *TCPTransport) startAcceptLoop() {
 	}
 }
 
-// TODO: update to final message type
-type TempMsg struct{}
-
 // serves message within individual TCP connection
 func (t *TCPTransport) handleConn(conn net.Conn) {
 	// create new tcp connection, outbound peer (making a connection with another peer)
 	peer := NewTCPPeer(conn, true)
 
-	fmt.Printf("New incoming connection, peer: %+v\n", peer)
+	fmt.Printf("New incoming connection, peer: %v\n", peer)
 
 	// attempt to establish handshake
 	if err := t.TCPTransportOpts.ShakeHands(conn); err != nil {
@@ -114,14 +111,15 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	// message read loop - reading from connection
 	// buf := new(bytes.Buffer)
 
-	tempMsg := TempMsg{}
+	msg := Message{}
 
 	for {
-		if err := t.TCPTransportOpts.Decoder.Decode(conn, &tempMsg); err != nil {
+		if err := t.TCPTransportOpts.Decoder.Decode(conn, &msg); err != nil {
 			fmt.Printf("Error when decoding incoming message to TCP server %s", err)
 			continue
 		}
 
+		fmt.Printf("Message recieved in tcp connection %+v\n", msg)
 	}
 
 }
