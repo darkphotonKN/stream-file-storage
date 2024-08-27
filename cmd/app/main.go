@@ -8,7 +8,7 @@ import (
 
 func main() {
 
-	dec := p2p.NewDecoder()
+	dec := p2p.NewDefaultDecoder()
 
 	tcpOpts := p2p.TCPTransportOpts{
 		ListenAddr: ":5555",
