@@ -62,13 +62,16 @@ func (t *TCPTransport) ListenAndAccept() error {
 
 	var err error
 
+	// creates a tcp listener that is capable of listening on a tcp connection
 	t.listener, err = net.Listen("tcp", t.TCPTransportOpts.ListenAddr)
 
 	if err != nil {
 		return err
 	}
 
-	// go routine to listen for networks
+	// goroutine to listen for networks,
+	// used to allow other incoming requests while my goroutine
+	// handles more incoming request for this tcp connection
 	go t.startAcceptLoop()
 
 	return nil
@@ -77,6 +80,7 @@ func (t *TCPTransport) ListenAndAccept() error {
 // listens and serves each tcp connection
 func (t *TCPTransport) startAcceptLoop() {
 	for {
+		// actually use the tcp listener to start and listen to incoming CONNECTIONS
 		conn, err := t.listener.Accept()
 
 		// current connection fails, iterate to start listening again
@@ -87,7 +91,7 @@ func (t *TCPTransport) startAcceptLoop() {
 			continue
 		}
 
-		// start individual go-routine to handle specific connections
+		// start individual go-routine to handle individual CONNECTION'S requests
 		go t.handleConn(conn)
 	}
 }
@@ -97,7 +101,7 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	// create new tcp connection, outbound peer (making a connection with another peer)
 	peer := NewTCPPeer(conn, true)
 
-	fmt.Printf("New incoming connection, peer: %v\n", peer)
+	fmt.Printf("[TCP Server Msg] New incoming connection, peer: %v\n\n", peer)
 
 	// attempt to establish handshake
 	if err := t.TCPTransportOpts.ShakeHands(conn); err != nil {
@@ -111,15 +115,15 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	// message read loop - reading from connection
 	// buf := new(bytes.Buffer)
 
-	msg := Message{}
+	rpc := RPC{}
 
 	for {
-		if err := t.TCPTransportOpts.Decoder.Decode(conn, &msg); err != nil {
+		if err := t.TCPTransportOpts.Decoder.Decode(conn, &rpc); err != nil {
 			fmt.Printf("Error when decoding incoming message to TCP server %s", err)
 			continue
 		}
 
-		fmt.Printf("Message recieved in tcp connection %+v\n", msg)
+		fmt.Printf("[TCP Server Msg] Message recieved in tcp connection %+v\n", rpc)
 	}
 
 }

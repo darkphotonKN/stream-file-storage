@@ -10,16 +10,17 @@ func TestTCPTransport(t *testing.T) {
 	listenAddr := ":4002"
 
 	tcpOpts := TCPTransportOpts{
-		ListenAddr: ":4002",
+		ListenAddr: listenAddr,
 		ShakeHands: NOPHandshakeFunc,
+		Decoder:    DefaultDecoder{},
 	}
 
 	tr := NewTCPTransport(
 		tcpOpts,
 	).(*TCPTransport)
 
-	assert.Equal(t, listenAddr, tr.TCPTransportOpts.ListenAddr)
+	assert.Equal(t, tr.TCPTransportOpts.ListenAddr, ":4002")
 
-	// check that this is returning nil and not an error
+	// check that this is returning nil and not an error so that server is running
 	assert.Nil(t, tr.ListenAndAccept())
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/darkphotonKN/stream-file-storage/p2p"
@@ -8,10 +9,12 @@ import (
 
 func main() {
 
+	listenAddr := 5555
+
 	dec := p2p.NewDefaultDecoder()
 
 	tcpOpts := p2p.TCPTransportOpts{
-		ListenAddr: ":5555",
+		ListenAddr: fmt.Sprintf(":%d", listenAddr),
 		ShakeHands: p2p.NOPHandshakeFunc,
 		Decoder:    dec,
 	}
