@@ -11,7 +11,7 @@ import (
 * TCP Transport Protocol
 **/
 
-// TCP Peer
+// TCPPeer represents the remote node over a TCP established connection
 type TCPPeer struct {
 	// underlying connection for peer
 	conn net.Conn
@@ -20,6 +20,12 @@ type TCPPeer struct {
 	// if we dial and receive a connection = outbound then this value is true
 	// if we dial and receiev a connection = inbound then this value is false
 	outbound bool
+}
+
+// for closing peer node in the network
+func (p *TCPPeer) Close() error {
+	// attempt to close the connection to the node, returning the error if it fails
+	return p.conn.Close()
 }
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
@@ -34,12 +40,14 @@ type TCPTransportOpts struct {
 	ListenAddr string
 	ShakeHands HandshakeFunc
 	Decoder    Decoder
+	OnPeer     func(Peer) error
 }
 
 // create a TCP transport container
 type TCPTransport struct {
 	TCPTransportOpts
 	listener net.Listener
+	rpcch    chan RPC
 
 	mu sync.RWMutex
 
@@ -48,14 +56,23 @@ type TCPTransport struct {
 	// string "Network" to represent network type ("TCP" / "UDP")
 	// string "String" to represent the unique ip address
 	// value is the Peer which represents the remote node
-	peers map[net.Addr]Peer
+	// NOTE: moving this to let server handle list of peers instead (for now)
+	// peers map[net.Addr]Peer
 }
 
 // conforms to the Transport Interface, using DIP for decoupling
-func NewTCPTransport(tcpTransportOpts TCPTransportOpts) Transport {
+func NewTCPTransport(opts TCPTransportOpts) Transport {
 	return &TCPTransport{
-		TCPTransportOpts: tcpTransportOpts,
+		TCPTransportOpts: opts,
+		rpcch:            make(chan RPC),
 	}
+}
+
+// Restricts caller to only listen through the return type of this
+// [read-only] channel, for reading the messages received from another peer
+// in the network
+func (t *TCPTransport) Consume() <-chan RPC {
+	return t.rpcch
 }
 
 func (t *TCPTransport) ListenAndAccept() error {
@@ -98,18 +115,35 @@ func (t *TCPTransport) startAcceptLoop() {
 
 // serves message within individual TCP connection
 func (t *TCPTransport) handleConn(conn net.Conn) {
+	var err error
+
+	defer func() {
+		fmt.Printf("Dropping the peer connection, reason: %s", err)
+		conn.Close()
+	}()
+
 	// create new tcp connection, outbound peer (making a connection with another peer)
 	peer := NewTCPPeer(conn, true)
 
 	fmt.Printf("[TCP Server Msg] New incoming connection, peer: %v\n\n", peer)
 
+	// Only establish read loop after handshake and onPeer existance is confirmed
+
 	// attempt to establish handshake
-	if err := t.TCPTransportOpts.ShakeHands(conn); err != nil {
+	if err = t.TCPTransportOpts.ShakeHands(conn); err != nil {
+
 		// close connection if handeshake failed
 
 		fmt.Printf("TCP handshake error %s\n", err)
 		conn.Close()
 		return
+	}
+
+	// check onPeer when provided does not have an error for a legit peer connection
+	if t.OnPeer != nil {
+		if err = t.OnPeer(peer); err != nil {
+			return
+		}
 	}
 
 	// message read loop - reading from connection
@@ -118,7 +152,7 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	rpc := RPC{}
 
 	for {
-		if err := t.TCPTransportOpts.Decoder.Decode(conn, &rpc); err != nil {
+		if err = t.TCPTransportOpts.Decoder.Decode(conn, &rpc); err != nil {
 			fmt.Printf("Error when decoding incoming message to TCP server %s", err)
 			continue
 		}

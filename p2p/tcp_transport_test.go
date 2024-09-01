@@ -23,4 +23,5 @@ func TestTCPTransport(t *testing.T) {
 
 	// check that this is returning nil and not an error so that server is running
 	assert.Nil(t, tr.ListenAndAccept())
+
 }
