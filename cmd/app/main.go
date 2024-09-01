@@ -7,8 +7,12 @@ import (
 	"github.com/darkphotonKN/stream-file-storage/p2p"
 )
 
-func main() {
+func onPeer(p2p.Peer) error {
+	// do some logic with the peer outside of transport
+	return nil
+}
 
+func main() {
 	listenAddr := 5555
 
 	dec := p2p.NewDefaultDecoder()
@@ -17,7 +21,7 @@ func main() {
 		ListenAddr: fmt.Sprintf(":%d", listenAddr),
 		ShakeHands: p2p.NOPHandshakeFunc,
 		Decoder:    dec,
-		OnPeer:     func(p p2p.Peer) error { return fmt.Errorf("Errorrrrrrr") },
+		OnPeer:     onPeer,
 	}
 
 	tr := p2p.NewTCPTransport(tcpOpts)
@@ -36,5 +40,4 @@ func main() {
 	}
 
 	select {}
-
 }

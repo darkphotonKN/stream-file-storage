@@ -40,7 +40,8 @@ type TCPTransportOpts struct {
 	ListenAddr string
 	ShakeHands HandshakeFunc
 	Decoder    Decoder
-	OnPeer     func(Peer) error
+	// provide callback access to the Peer object
+	OnPeer func(Peer) error
 }
 
 // create a TCP transport container
